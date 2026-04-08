@@ -2,41 +2,44 @@
 using Azure.Messaging.EventHubs.Producer;
 using Azure.Messaging.EventHubs;
 using System.Text;
+using Microsoft.Extensions.Configuration;
 
 class program
 {
-    private const string connectionString = "Endpoint=sb://test-eventhub1234.servicebus.windows.net/;SharedAccessKeyName=minhtest;SharedAccessKey=jNyS9RBIwbhBvZ3O8JOIFyvNeAY5Fb51F+AEhJGkphE=;EntityPath=testeventhub1234";
-    private const string eventHubName = "testeventhub1234";
+  
 
     static async Task Main()
     {
+        var config = new ConfigurationBuilder()
+            .AddJsonFile("appsettings.json", optional: false)
+            .Build();
+        string connectionString = config["EventHub:ConnectionString"];
+        string eventHubName = config["EventHub:EventHubName"];
+
         await using var producerClient =
             new EventHubProducerClient(connectionString, eventHubName);
 
-        int counter = 0;
-
         while (true)
         {
-            using EventDataBatch batch = await producerClient.CreateBatchAsync();
+            ConsoleKeyInfo keyInfo = Console.ReadKey(true);
 
-            for (int i = 0; i < 100; i++)
+            if (keyInfo.Key == ConsoleKey.Escape)
             {
-                string message = $"Message {counter} - {DateTime.Now}";
-                EventData eventData = new EventData(Encoding.UTF8.GetBytes(message));
-
-                if (!batch.TryAdd(eventData))
-                {
-                    break;
-                }
-
-                counter++;
+                Console.WriteLine("Exit...");
+                break;
             }
 
-            await producerClient.SendAsync(batch);
+            string message = keyInfo.KeyChar.ToString();
 
-            Console.WriteLine($"Sent batch with {batch.Count} events");
+            using EventDataBatch batch = await producerClient.CreateBatchAsync();
 
-            await Task.Delay(1000); 
+            EventData eventData = new EventData(Encoding.UTF8.GetBytes(message));
+
+            if (batch.TryAdd(eventData))
+            {
+                await producerClient.SendAsync(batch);
+                Console.WriteLine($"Sent: {message}");
+            }
         }
     }
     }
