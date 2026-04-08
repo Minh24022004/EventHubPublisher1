@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.13.35913.81 d17.13
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EventHubPublisher", "EventHubPublisher.csproj", "{95ED7FC6-2EA6-48ED-9971-EF5A0EABF929}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EventHubConsumer", "..\EventHubConsumer\EventHubConsumer.csproj", "{EBA52391-C5E1-4299-B2E4-C52C158AE6B8}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{95ED7FC6-2EA6-48ED-9971-EF5A0EABF929}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{95ED7FC6-2EA6-48ED-9971-EF5A0EABF929}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{95ED7FC6-2EA6-48ED-9971-EF5A0EABF929}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{95ED7FC6-2EA6-48ED-9971-EF5A0EABF929}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EBA52391-C5E1-4299-B2E4-C52C158AE6B8}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EBA52391-C5E1-4299-B2E4-C52C158AE6B8}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EBA52391-C5E1-4299-B2E4-C52C158AE6B8}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EBA52391-C5E1-4299-B2E4-C52C158AE6B8}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {AAC924EB-83BA-43FE-AE23-09C439EE817E}
+	EndGlobalSection
+EndGlobal
