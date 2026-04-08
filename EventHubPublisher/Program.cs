@@ -4,13 +4,18 @@ using Azure.Messaging.EventHubs.Producer;
 using Azure.Messaging.EventHubs;
 using System.Text;
 using Azure.Messaging.EventHubs.Consumer;
+using Microsoft.Extensions.Configuration;
 
 class Program
 {
-    private const string connectionString = "Endpoint=sb://test-eventhub1234.servicebus.windows.net/;SharedAccessKeyName=minhtest;SharedAccessKey=jNyS9RBIwbhBvZ3O8JOIFyvNeAY5Fb51F+AEhJGkphE=;EntityPath=testeventhub1234";
 
     static async Task Main()
     {
+        var config = new ConfigurationBuilder()
+           .AddJsonFile("appsettings.json", optional: false)
+           .Build();
+        string connectionString = config["EventHub:ConnectionString"];
+        string eventHubName = config["EventHub:EventHubName"];
         string consumerGroup = EventHubConsumerClient.DefaultConsumerGroupName;
 
         await using var consumer = new EventHubConsumerClient(consumerGroup,connectionString);
@@ -21,7 +26,7 @@ class Program
         {
             string message = Encoding.UTF8.GetString(partitionEvent.Data.Body.ToArray());
 
-            Console.WriteLine($"Received: {message}");
+            Console.WriteLine($"Received: {message}: {DateTime.Now} ");
         }
     }
 }
