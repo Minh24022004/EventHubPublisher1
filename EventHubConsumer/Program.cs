@@ -21,16 +21,12 @@ class program
 
         while (true)
         {
-            ConsoleKeyInfo keyInfo = Console.ReadKey(true);
-
-            if (keyInfo.Key == ConsoleKey.Escape)
+            String message = Console.ReadLine();
+            if (message?.ToLower() == "exit")
             {
                 Console.WriteLine("Exit...");
                 break;
-            }
-
-            string message = keyInfo.KeyChar.ToString();
-
+            }            
             using EventDataBatch batch = await producerClient.CreateBatchAsync();
 
             EventData eventData = new EventData(Encoding.UTF8.GetBytes(message));

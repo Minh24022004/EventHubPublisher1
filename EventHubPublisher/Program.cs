@@ -26,7 +26,7 @@ class Program
         {
             string message = Encoding.UTF8.GetString(partitionEvent.Data.Body.ToArray());
 
-            Console.WriteLine($"Received: {message}");
+            Console.WriteLine($"Received: {message}: {DateTime.Now} ");
         }
     }
 }
