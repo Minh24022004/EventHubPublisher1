@@ -1,67 +1,71 @@
-﻿// See https://aka.ms/new-console-template for more information
 using Azure.Messaging.EventHubs;
-using Azure.Messaging.EventHubs.Producer;
+using Azure.Messaging.EventHubs.Consumer;
 using Microsoft.Extensions.Configuration;
 using System.Text;
+using System.Threading.Channels;
 
 class Program
 {
+    static DateTime lastProcessedTime = DateTime.MinValue;
+    static string checkpointFile = "checkpoint.txt";
+
     static async Task Main()
     {
         var config = new ConfigurationBuilder()
-            .AddJsonFile("appsettings.json", optional: false)
-            .Build();
+           .AddJsonFile("appsettings.json", optional: false)
+           .Build();
 
         string connectionString = config["EventHub:ConnectionString"];
         string eventHubName = config["EventHub:EventHubName"];
 
-        await using var producerClient =
-            new EventHubProducerClient(connectionString, eventHubName);
-
-        Console.WriteLine("Type message, /spam to send 100 messages, /exit to quit");
-
-        int counter = 0;
-
-        while (true)
+     
+        if (File.Exists(checkpointFile))
         {
-            string message = Console.ReadLine();
-
-            if (message?.ToLower() == "/exit")
+            string text = File.ReadAllText(checkpointFile);
+            if (DateTime.TryParse(text, out DateTime savedTime))
             {
-                Console.WriteLine("Exit...");
-                break;
+                lastProcessedTime = savedTime;
             }
+        }
 
-            if (message?.ToLower() == "/spam")
+        await using var consumer = new EventHubConsumerClient(
+           EventHubConsumerClient.DefaultConsumerGroupName,
+           connectionString,
+           eventHubName);
+
+        Console.WriteLine($"Last processed time: {lastProcessedTime}");
+
+        var channel = Channel.CreateUnbounded<EventData>();
+
+        
+        for (int i = 0; i < 50; i++)
+        {
+            _ = Task.Run(async () =>
             {
-                using EventDataBatch batch = await producerClient.CreateBatchAsync();
-
-                for (int i = 0; i < 100; i++)
+                await foreach (var evt in channel.Reader.ReadAllAsync())
                 {
-                    string spamMessage = $"Spam message {counter} ";
-                    EventData eventData = new EventData(Encoding.UTF8.GetBytes(spamMessage));
+                    string message = Encoding.UTF8.GetString(evt.Body.ToArray());
+                    DateTime eventTime = evt.EnqueuedTime.UtcDateTime;
 
-                    if (!batch.TryAdd(eventData))
-                        break;
+                    Console.WriteLine($"Processing: {message} + {DateTime.Now}");
 
-                    counter++;
+                    lastProcessedTime = eventTime;
+                    File.WriteAllText(checkpointFile, lastProcessedTime.ToString("O"));
+
+                    await Task.Delay(1000); 
                 }
+            });
+        }
 
-                await producerClient.SendAsync(batch);
-                Console.WriteLine($"Sent 100 spam messages at {DateTime.Now}");
-            }
-            else
-            {
-                using EventDataBatch batch = await producerClient.CreateBatchAsync();
+        EventPosition startPosition =
+            lastProcessedTime == DateTime.MinValue
+            ? EventPosition.Earliest
+            : EventPosition.FromEnqueuedTime(new DateTimeOffset(lastProcessedTime));
 
-                EventData eventData = new EventData(Encoding.UTF8.GetBytes(message));
-
-                if (batch.TryAdd(eventData))
-                {
-                    await producerClient.SendAsync(batch);
-                    Console.WriteLine($"Sent: {message}");
-                }
-            }
+        await foreach (PartitionEvent partitionEvent in
+            consumer.ReadEventsFromPartitionAsync("0", startPosition))
+        {
+            await channel.Writer.WriteAsync(partitionEvent.Data);          
         }
     }
 }
