@@ -1,5 +1,7 @@
 ﻿using Azure.Messaging.EventHubs;
-using Azure.Messaging.EventHubs.Producer;
+using Azure.Messaging.EventHubs.Processor;
+using Azure.Storage.Blobs;
+using EventHubConsumer;
 using Microsoft.Extensions.Configuration;
 using System.Text;
 
@@ -7,77 +9,61 @@ class Program
 {
     static async Task Main()
     {
-        
         var config = new ConfigurationBuilder()
             .AddJsonFile("appsettings.json", optional: false)
             .Build();
 
-       
         var options = config
             .GetSection("EventHub")
             .Get<EventHubOptions>();
 
-        await using var producerClient =
-            new EventHubProducerClient(
-                options.ConnectionString,
-                options.EventHubName);
+        var blobOptions = config
+            .GetSection("BlobStorage")
+            .Get<BlobStorageOptions>();
 
-        Console.WriteLine("Type message, /spam to send 100 messages, /exit to quit");
+        BlobContainerClient containerClient =
+     new BlobContainerClient(
+         blobOptions.ConnectionString,
+         blobOptions.ContainerName);
 
-        int counter = 0;
+        await containerClient.CreateIfNotExistsAsync();
 
-        while (true)
-        {
-            string message = Console.ReadLine();
+        var processor = new EventProcessorClient(
+            containerClient,
+            options.ConsumerGroup,
+            options.ConnectionString,
+            options.EventHubName
+        );
 
-            if (message?.ToLower() == "/exit")
-            {
-                Console.WriteLine("Exit...");
-                break;
-            }
+        processor.ProcessEventAsync += ProcessEventHandler;
+        processor.ProcessErrorAsync += ProcessErrorHandler;
 
-            if (message?.ToLower() == "/spam")
-            {
-                using EventDataBatch batch =
-                    await producerClient.CreateBatchAsync();
+        Console.WriteLine("Starting Event Processor...");
 
-                for (int i = 0; i < 100; i++)
-                {
-                    string spamMessage = $"Spam message {counter}";
+        await processor.StartProcessingAsync();
 
-                    EventData eventData =
-                        new EventData(Encoding.UTF8.GetBytes(spamMessage));
+        Console.WriteLine("Press ENTER to stop...");
+        Console.ReadLine();
 
-                    if (!batch.TryAdd(eventData))
-                        break;
-
-                    counter++;
-                }
-
-                await producerClient.SendAsync(batch);
-
-                Console.WriteLine($"Sent 100 spam messages at {DateTime.Now}");
-            }
-            else
-            {
-                using EventDataBatch batch =
-                    await producerClient.CreateBatchAsync();
-
-                EventData eventData =
-                    new EventData(Encoding.UTF8.GetBytes(message));
-
-                if (batch.TryAdd(eventData))
-                {
-                    await producerClient.SendAsync(batch);
-                    Console.WriteLine($"Sent: {message} at {DateTime.Now}");
-                }
-            }
-        }
+        await processor.StopProcessingAsync();
     }
-}
 
-public class EventHubOptions
-{
-    public string ConnectionString { get; set; }
-    public string EventHubName { get; set; }
+    static async Task ProcessEventHandler(ProcessEventArgs eventArgs)
+    {
+        string message =
+            Encoding.UTF8.GetString(eventArgs.Data.Body.ToArray());
+
+        Console.WriteLine(
+            $"Received: {message} | {DateTime.Now} | Partition: {eventArgs.Partition.PartitionId}");
+
+        await eventArgs.UpdateCheckpointAsync();
+    }
+
+    static Task ProcessErrorHandler(ProcessErrorEventArgs args)
+    {
+        Console.WriteLine(
+            $"Error on partition {args.PartitionId}: {args.Exception.Message}");
+
+        return Task.CompletedTask;
+    }
 }

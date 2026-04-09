@@ -4,11 +4,12 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace EventHubPublisher
+namespace EventHubConsumer
 {
     public class EventHubOptions
     {
         public string ConnectionString { get; set; }
         public string EventHubName { get; set; }
+        public string ConsumerGroup { get; set; }
     }
 }
