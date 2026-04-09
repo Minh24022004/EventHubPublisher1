@@ -1,5 +1,6 @@
 ﻿using Azure.Messaging.EventHubs;
 using Azure.Messaging.EventHubs.Consumer;
+using EventHubConsumer;
 using Microsoft.Extensions.Configuration;
 using System.Text;
 using System.Threading.Channels;
@@ -11,12 +12,14 @@ class Program
 
     static async Task Main()
     {
+        
         var config = new ConfigurationBuilder()
-           .AddJsonFile("appsettings.json", optional: false)
-           .Build();
+            .AddJsonFile("appsettings.json", optional: false)
+            .Build();
 
-        string connectionString = config["EventHub:ConnectionString"];
-        string eventHubName = config["EventHub:EventHubName"];
+    
+        var eventHubOptions = new EventHubOptions();
+        config.GetSection("EventHub").Bind(eventHubOptions);
 
      
         if (File.Exists(checkpointFile))
@@ -29,9 +32,9 @@ class Program
         }
 
         await using var consumer = new EventHubConsumerClient(
-           EventHubConsumerClient.DefaultConsumerGroupName,
-           connectionString,
-           eventHubName);
+            EventHubConsumerClient.DefaultConsumerGroupName,
+            eventHubOptions.ConnectionString,
+            eventHubOptions.EventHubName);
 
         Console.WriteLine($"Last processed time: {lastProcessedTime}");
 
@@ -47,12 +50,12 @@ class Program
                     string message = Encoding.UTF8.GetString(evt.Body.ToArray());
                     DateTime eventTime = evt.EnqueuedTime.UtcDateTime;
 
-                    Console.WriteLine($"Processing: {message} + {DateTime.Now}");
+                    Console.WriteLine($"Processing: {message} | {DateTime.Now}");
 
                     lastProcessedTime = eventTime;
                     File.WriteAllText(checkpointFile, lastProcessedTime.ToString("O"));
 
-                    await Task.Delay(1000); 
+                    await Task.Delay(1000);
                 }
             });
         }
@@ -65,7 +68,8 @@ class Program
         await foreach (PartitionEvent partitionEvent in
             consumer.ReadEventsFromPartitionAsync("0", startPosition))
         {
-            await channel.Writer.WriteAsync(partitionEvent.Data);          
+            await channel.Writer.WriteAsync(partitionEvent.Data);
         }
     }
 }
+
