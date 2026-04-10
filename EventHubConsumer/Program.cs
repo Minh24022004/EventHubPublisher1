@@ -7,6 +7,8 @@ using System.Text;
 
 class Program
 {
+    private static readonly SemaphoreSlim _lock = new(1, 1);
+
     static async Task Main()
     {
         var config = new ConfigurationBuilder()
@@ -22,9 +24,9 @@ class Program
             .Get<BlobStorageOptions>();
 
         BlobContainerClient containerClient =
-     new BlobContainerClient(
-         blobOptions.ConnectionString,
-         blobOptions.ContainerName);
+            new BlobContainerClient(
+                blobOptions.ConnectionString,
+                blobOptions.ContainerName);
 
         await containerClient.CreateIfNotExistsAsync();
 
@@ -50,13 +52,24 @@ class Program
 
     static async Task ProcessEventHandler(ProcessEventArgs eventArgs)
     {
-        string message =
-            Encoding.UTF8.GetString(eventArgs.Data.Body.ToArray());
+        await _lock.WaitAsync();
 
-        Console.WriteLine(
-            $"Received: {message} | {DateTime.Now} | Partition: {eventArgs.Partition.PartitionId}");
+        try
+        {
+            string message =
+                Encoding.UTF8.GetString(eventArgs.Data.Body.ToArray());
 
-        await eventArgs.UpdateCheckpointAsync();
+            await Task.Delay(100);
+
+            Console.WriteLine(
+                $"Received: {message} | {DateTime.Now} | Partition: {eventArgs.Partition.PartitionId}");
+
+            await eventArgs.UpdateCheckpointAsync();
+        }
+        finally
+        {
+            _lock.Release();
+        }
     }
 
     static Task ProcessErrorHandler(ProcessErrorEventArgs args)

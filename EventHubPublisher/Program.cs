@@ -1,5 +1,6 @@
 ﻿using Azure.Messaging.EventHubs;
 using Azure.Messaging.EventHubs.Producer;
+using EventHubPublisher;
 using Microsoft.Extensions.Configuration;
 using System.Text;
 
@@ -76,8 +77,3 @@ class Program
     }
 }
 
-public class EventHubOptions
-{
-    public string ConnectionString { get; set; }
-    public string EventHubName { get; set; }
-}
