@@ -1,41 +1,82 @@
-﻿// See https://aka.ms/new-console-template for more information
-using Azure.Messaging.EventHubs.Producer;
-using Azure.Messaging.EventHubs;
-using System.Text;
+﻿using Azure.Messaging.EventHubs;
+using Azure.Messaging.EventHubs.Processor;
+using Azure.Storage.Blobs;
+using EventHubConsumer;
 using Microsoft.Extensions.Configuration;
+using System.Text;
 
-class program
+class Program
 {
-  
+    private static readonly SemaphoreSlim _lock = new(1, 1);
 
     static async Task Main()
     {
         var config = new ConfigurationBuilder()
             .AddJsonFile("appsettings.json", optional: false)
             .Build();
-        string connectionString = config["EventHub:ConnectionString"];
-        string eventHubName = config["EventHub:EventHubName"];
 
-        await using var producerClient =
-            new EventHubProducerClient(connectionString, eventHubName);
+        var options = config
+            .GetSection("EventHub")
+            .Get<EventHubOptions>();
 
-        while (true)
+        var blobOptions = config
+            .GetSection("BlobStorage")
+            .Get<BlobStorageOptions>();
+
+        BlobContainerClient containerClient =
+            new BlobContainerClient(
+                blobOptions.ConnectionString,
+                blobOptions.ContainerName);
+
+        await containerClient.CreateIfNotExistsAsync();
+
+        var processor = new EventProcessorClient(
+            containerClient,
+            options.ConsumerGroup,
+            options.ConnectionString,
+            options.EventHubName
+        );
+
+        processor.ProcessEventAsync += ProcessEventHandler;
+        processor.ProcessErrorAsync += ProcessErrorHandler;
+
+        Console.WriteLine("Starting Event Processor...");
+
+        await processor.StartProcessingAsync();
+
+        Console.WriteLine("Press ENTER to stop...");
+        Console.ReadLine();
+
+        await processor.StopProcessingAsync();
+    }
+
+    static async Task ProcessEventHandler(ProcessEventArgs eventArgs)
+    {
+        await _lock.WaitAsync();
+
+        try
         {
-            String message = Console.ReadLine();
-            if (message?.ToLower() == "exit")
-            {
-                Console.WriteLine("Exit...");
-                break;
-            }            
-            using EventDataBatch batch = await producerClient.CreateBatchAsync();
+            string message =
+                Encoding.UTF8.GetString(eventArgs.Data.Body.ToArray());
 
-            EventData eventData = new EventData(Encoding.UTF8.GetBytes(message));
+            await Task.Delay(100);
 
-            if (batch.TryAdd(eventData))
-            {
-                await producerClient.SendAsync(batch);
-                Console.WriteLine($"Sent: {message}");
-            }
+            Console.WriteLine(
+                $"Received: {message} | {DateTime.Now} | Partition: {eventArgs.Partition.PartitionId}");
+
+            await eventArgs.UpdateCheckpointAsync();
+        }
+        finally
+        {
+            _lock.Release();
         }
     }
+
+    static Task ProcessErrorHandler(ProcessErrorEventArgs args)
+    {
+        Console.WriteLine(
+            $"Error on partition {args.PartitionId}: {args.Exception.Message}");
+
+        return Task.CompletedTask;
     }
+}
