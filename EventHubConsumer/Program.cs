@@ -12,6 +12,7 @@ class Program
 {
     
     private const int CHECKPOINT_BATCH_SIZE = 50;
+    private const int PARTITION_QUEUE_CAPACITY = 1000;
     private static readonly ConcurrentDictionary<string, int> EventCount = new();
     private static readonly ConcurrentDictionary<string, ProcessEventArgs> LastEvent = new();
 
@@ -29,10 +30,11 @@ class Program
             Func<ProcessEventArgs, string, string, Task> processOne)
         {
             _processOne = processOne;
-            _channel = Channel.CreateUnbounded<QueuedEvent>(new UnboundedChannelOptions
+            _channel = Channel.CreateBounded<QueuedEvent>(new BoundedChannelOptions(PARTITION_QUEUE_CAPACITY)
             {
                 SingleReader = true,
-                SingleWriter = false
+                SingleWriter = false,
+                FullMode = BoundedChannelFullMode.Wait
             });
             ProcessingTask = ProcessLoopAsync(partitionId);
         }
