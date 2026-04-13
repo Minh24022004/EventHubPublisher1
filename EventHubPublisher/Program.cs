@@ -1,32 +1,79 @@
-﻿// See https://aka.ms/new-console-template for more information
-
+﻿using Azure.Messaging.EventHubs;
 using Azure.Messaging.EventHubs.Producer;
-using Azure.Messaging.EventHubs;
-using System.Text;
-using Azure.Messaging.EventHubs.Consumer;
+using EventHubPublisher;
 using Microsoft.Extensions.Configuration;
+using System.Text;
 
 class Program
 {
-
     static async Task Main()
     {
+        
         var config = new ConfigurationBuilder()
-           .AddJsonFile("appsettings.json", optional: false)
-           .Build();
-        string connectionString = config["EventHub:ConnectionString"];
-        string eventHubName = config["EventHub:EventHubName"];
-        string consumerGroup = EventHubConsumerClient.DefaultConsumerGroupName;
+            .AddJsonFile("appsettings.json", optional: false)
+            .Build();
 
-        await using var consumer = new EventHubConsumerClient(consumerGroup,connectionString);
+       
+        var options = config
+            .GetSection("EventHub")
+            .Get<EventHubOptions>();
 
-        Console.WriteLine("Listening for events...");
+        await using var producerClient =
+            new EventHubProducerClient(
+                options.ConnectionString,
+                options.EventHubName);
 
-        await foreach (PartitionEvent partitionEvent in consumer.ReadEventsAsync())
+        Console.WriteLine("Type message, /spam to send 100 messages, /exit to quit");
+
+        int counter = 0;
+
+        while (true)
         {
-            string message = Encoding.UTF8.GetString(partitionEvent.Data.Body.ToArray());
+            string message = Console.ReadLine();
 
-            Console.WriteLine($"Received: {message}: {DateTime.Now} ");
+            if (message?.ToLower() == "/exit")
+            {
+                Console.WriteLine("Exit...");
+                break;
+            }
+
+            if (message?.ToLower() == "/spam")
+            {
+                using EventDataBatch batch =
+                    await producerClient.CreateBatchAsync();
+
+                for (int i = 0; i < 100; i++)
+                {
+                    string spamMessage = $"Spam message {counter}";
+
+                    EventData eventData =
+                        new EventData(Encoding.UTF8.GetBytes(spamMessage));
+
+                    if (!batch.TryAdd(eventData))
+                        break;
+
+                    counter++;
+                }
+
+                await producerClient.SendAsync(batch);
+
+                Console.WriteLine($"Sent 100 spam messages at {DateTime.Now}");
+            }
+            else
+            {
+                using EventDataBatch batch =
+                    await producerClient.CreateBatchAsync();
+
+                EventData eventData =
+                    new EventData(Encoding.UTF8.GetBytes(message));
+
+                if (batch.TryAdd(eventData))
+                {
+                    await producerClient.SendAsync(batch);
+                    Console.WriteLine($"Sent: {message} at {DateTime.Now}");
+                }
+            }
         }
     }
 }
+

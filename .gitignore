@@ -363,3 +363,5 @@ MigrationBackup/
 FodyWeavers.xsd
 EventHubConsumer/appsettings.json
 EventHubPublisher/appsettings.json
+/**/__azurite*.json
+/**/__blobstorage__/
