@@ -368,3 +368,5 @@ EventHubPublisher/appsettings.json
 /EventHubPublisher/__azurite_db_blob_extent__.json
 EventHubPublisher/__azurite_db_blob__.json
 *.json
+EventHubPublisher/__azurite_db_blob__.json
+EventHubPublisher/__azurite_db_blob__.json

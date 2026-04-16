@@ -3,8 +3,6 @@ using System.Threading.Channels;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-using EventHub.Core.Options;
-
 namespace EventHubConsumer.Services;
 
 public sealed class PartitionQueueManager : IPartitionQueueManager

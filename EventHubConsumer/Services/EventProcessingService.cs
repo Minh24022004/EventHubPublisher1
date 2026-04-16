@@ -3,8 +3,6 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using System.Collections.Concurrent;
 
-using EventHub.Core.Options;
-
 namespace EventHubConsumer.Services;
 
 public sealed class EventProcessingService : IEventProcessingService

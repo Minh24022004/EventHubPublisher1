@@ -3,8 +3,6 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 
-using EventHub.Core.Options;
-
 namespace EventHubPublisher.Services;
 
 public sealed class PublisherConsoleWorker : BackgroundService
