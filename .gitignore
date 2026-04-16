@@ -365,3 +365,8 @@ EventHubConsumer/appsettings.json
 EventHubPublisher/appsettings.json
 /**/__azurite*.json
 /**/__blobstorage__/
+/EventHubPublisher/__azurite_db_blob_extent__.json
+EventHubPublisher/__azurite_db_blob__.json
+*.json
+EventHubPublisher/__azurite_db_blob__.json
+EventHubPublisher/__azurite_db_blob__.json
