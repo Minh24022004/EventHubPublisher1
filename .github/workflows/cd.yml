@@ -1,0 +1,43 @@
+name: CD
+
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types:
+      - completed
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    if: ${{ github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success' }}
+    runs-on: ubuntu-latest
+    environment: production
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 8.0.x
+
+      - name: Publish EventHubConsumer
+        run: dotnet publish EventHubConsumer/EventHubConsumer.csproj --configuration Release --output ./artifacts/consumer
+
+      - name: Publish EventHubPublisher
+        run: dotnet publish EventHubPublisher/EventHubPublisher.csproj --configuration Release --output ./artifacts/publisher
+
+      - name: Deploy EventHubConsumer to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_WEBAPP_NAME_CONSUMER }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_CONSUMER }}
+          package: ./artifacts/consumer
+
+      - name: Deploy EventHubPublisher to Azure App Service
+        uses: azure/webapps-deploy@v3
+        with:
+          app-name: ${{ vars.AZURE_WEBAPP_NAME_PUBLISHER }}
+          publish-profile: ${{ secrets.AZURE_WEBAPP_PUBLISH_PROFILE_PUBLISHER }}
+          package: ./artifacts/publisher
